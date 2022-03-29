@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nftqcd/lgt",
-    version="0.1.0",
+    version="0.1.2",
     author="Sam Foreman",
     author_email="saforem2@gmail.com",
     description=(
@@ -14,9 +14,9 @@ setuptools.setup(
     ),
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/nftqcd/lgt",
     project_urls={
-        "Bug Tracker": "https://github.com/nftqcd/fthmc/issues",
+        "Bug Tracker": "https://github.com/nftqcd/lgt/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
