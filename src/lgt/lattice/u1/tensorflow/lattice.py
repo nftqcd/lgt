@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 from typing import Optional
 
-from lgt.lattice.u1.numpy.lattice import U1BaseLattice
+from lgt.lattice.u1.numpy.lattice import BaseLatticeU1
 
 TF_FLOAT = tf.keras.backend.floatx()
 PI = tf.constant(np.pi)
@@ -60,9 +60,9 @@ def project_angle(x):
     return x - TWO_PI * tf.math.floor((x + PI) / TWO_PI)
 
 
-class U1Lattice(U1BaseLattice):
-    def __init__(self, shape: tuple):
-        super().__init__(shape=shape)
+class LatticeU1(BaseLatticeU1):
+    def __init__(self, nb: int, shape: tuple[int, int]):
+        super().__init__(nb, shape=shape)
 
     def draw_uniform_batch(self) -> Tensor:
         """Draw batch of samples, uniformly from [-pi, pi)."""
@@ -113,7 +113,7 @@ class U1Lattice(U1BaseLattice):
         # --------------------------
         # NOTE: Watch your shapes!
         # --------------------------
-        # * First, x.shape = [-1, Lt, Lx, 2], so
+        # * First, x.shape = [-1, 2, Lt, Lx], so
         #       (x_reshaped).T.shape = [2, Lx, Lt, -1]
         #   and,
         #       x0.shape = x1.shape = [Lx, Lt, -1]
@@ -123,15 +123,13 @@ class U1Lattice(U1BaseLattice):
         #       wloop = U0(x, y) +  U1(x+1, y) - U0(x, y+1) - U(1)(x, y)
         #   and so output = wloop.T, with output.shape = [-1, Lt, Lx]
         # --------------------------
-        xt = tf.transpose(tf.reshape(x, (-1, *self.xshape)))
-        x0 = xt[0]
-        x1 = xt[1]
+        x0, x1 = tf.transpose(tf.reshape(x, self._shape), (1, 2, 3, 0))
         wl = x0 + tf.roll(x1, -1, axis=0) - tf.roll(x0, -1, axis=1) - x1
         return tf.transpose(wl)
 
     def wilson_loops4x4(self, x: Tensor) -> Tensor:
         """Calculate the 4x4 Wilson loops"""
-        xt = tf.transpose(tf.reshape(x, (-1, *self.xshape)))
+        xt = tf.transpose(tf.reshape(x, (-1, *self.xshape)), (1, 0, 2, 3))
         x0 = xt[0]
         x1 = xt[1]
         return tf.transpose(
