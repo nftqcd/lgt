@@ -92,6 +92,7 @@ class LatticeSU3(BaseLatticeSU3):
     ) -> tuple[list[Tensor], list[Tensor]]:
         # x.shape = [nb, nt, nx, nx, nx, d, 3, 3]
         # y.shape = [nb, d, nt, nx, nx, nx, 3, 3]
+        x = tf.reshape(x, self._shape)
         assert len(x.shape) == 8
         plaqs = []
         rects = []
