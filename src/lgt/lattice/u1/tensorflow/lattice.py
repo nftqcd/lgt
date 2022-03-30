@@ -230,3 +230,34 @@ class LatticeU1(BaseLatticeU1):
         sinQ = self._sin_charges(wloops)
         intQ = self._int_charges(wloops)
         return Charges(intQ=intQ, sinQ=sinQ)
+
+    def plaq_loss(
+            self,
+            acc: Tensor,
+            x1: Optional[Tensor] = None,
+            x2: Optional[Tensor] = None,
+            wl1: Optional[Tensor] = None,
+            wl2: Optional[Tensor] = None,
+    ) -> float:
+        wloops1 = self._get_wloops(x1) if wl1 is None else wl1
+        wloops2 = self._get_wloops(x2) if wl2 is None else wl2
+        dwl = tf.subtract(wloops2, wloops1)
+        dwloops = 2. * (tf.ones_like(wl1) - tf.math.cos(dwl))
+        ploss = acc * tf.reduce_sum(dwloops, axis=(1, 2)) + 1e-4
+
+        return tf.reduce_mean(-ploss, axis=0)
+
+    def charge_loss(
+            self,
+            acc: Tensor,
+            x1: Optional[Tensor] = None,
+            x2: Optional[Tensor] = None,
+            wl1: Optional[Tensor] = None,
+            wl2: Optional[Tensor] = None,
+    ) -> float:
+        wloops1 = self._get_wloops(x1) if wl1 is None else wl1
+        wloops2 = self._get_wloops(x2) if wl2 is None else wl2
+        q1 = self._sin_charges(wloops=wloops1)
+        q2 = self._sin_charges(wloops=wloops2)
+        qloss = (acc * tf.math.subtract(q2, q1) ** 2) + 1e-4
+        return tf.reduce_mean(-qloss, axis=0)
