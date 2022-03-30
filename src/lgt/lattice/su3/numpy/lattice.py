@@ -5,6 +5,7 @@ Implements SU3BaseLattice Class
 """
 from __future__ import absolute_import, print_function, division, annotations
 
+# import jax.numpy as jnp
 import numpy as np
 
 from lgt.group import group as g
@@ -164,14 +165,14 @@ class BaseLatticeSU3:
     def random(self):
         return self.g.random(self._shape)
 
-    def grad_action(self, x: Array, beta: Array) -> Array:
-        """Returns the derivative of the action"""
-        if tf.executing_eagerly():
-            with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(x)
-                action = self.action(x, beta)
-            g = tape.gradient(action, x)
-        else:
-            g = tf.gradients(self.action(x, beta), [x])[0]
+    # def grad_action(self, x: Array, beta: Array) -> Array:
+    #     """Returns the derivative of the action"""
+    #     if tf.executing_eagerly():
+    #         with tf.GradientTape(watch_accessed_variables=False) as tape:
+    #             tape.watch(x)
+    #             action = self.action(x, beta)
+    #         g = tape.gradient(action, x)
+    #     else:
+    #         g = tf.gradients(self.action(x, beta), [x])[0]
 
-        return self.g.projectTAH(self.g.mul(g, x, adjoint_b=True))
+    #     return self.g.projectTAH(self.g.mul(g, x, adjoint_b=True))

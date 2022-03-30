@@ -13,14 +13,21 @@ written by Xiao-Yong Jin
 """
 from __future__ import absolute_import, division, print_function, annotations
 
+
+import numpy as np
 import tensorflow as tf
 import math
 from typing import Callable
 
+Array = np.array
 Tensor = tf.Tensor
 PI = tf.convert_to_tensor(math.pi)
+SQRT1by3 = tf.math.sqrt(1. / 3.)
 
 TF_FLOAT = tf.keras.backend.floatx()
+
+# def adj(x: Array):
+#     return x.conj().T
 
 
 class Group:
@@ -280,33 +287,43 @@ def checkSU(x: Tensor) -> tuple[Tensor, Tensor]:
     """
     nc = tf.constant(x.shape[-1])
     d = norm2(tf.linalg.matmul(x, x, adjoint_a=True) - eyeOf(x))
-    d = tf.math.add(d, norm2(tf.constant(1.) + tf.linalg.det(x), axis=[]))
+    det = tf.linalg.det(x)
+    d = tf.math.add(d, norm2(tf.constant(1., dtype=det.dtype) + det, axis=[]))
+    # d = tf.math.add(d, norm2(tf.constant(1.) + tf.linalg.det(x), axis=[]))
     # d += norm2(-1 + tf.linalg.det(x), axis=[])
     a = tf.math.reduce_mean(d, axis=range(1, len(d.shape)))
     b = tf.math.reduce_max(d, axis=range(1, len(d.shape)))
-    c = 2 * (nc * nc + 1)
+    c = tf.cast(2 * (nc * nc + 1), TF_FLOAT)
     return tf.math.sqrt(a / c), tf.math.sqrt(b / c)
 
 
-# def su3vec(x: Tensor) -> Tensor:
-#     """Only for x in 3x3 anti-Hermitian.
+def su3vec(x: Tensor) -> Tensor:
+    """Only for x in 3x3 anti-Hermitian.
 
-#     Return 8 real numbers, X^a T^a = X - 1/3 tr(X)
-#     """
+    Return 8 real numbers, X^a T^a = X - 1/3 tr(X)
 
-
-def eyeOf(m):
-    batch_shape = [1] * (len(m.shape) - 2)
-    return tf.eye(*m.shape[-2:], batch_shape=batch_shape, dtype=m.dtype)
-
-
-def exp(m: Tensor, order: int = 12):
-    eye = eyeOf(m)
-    x = eye + m / tf.constant(order)
-    for i in tf.range(order-1, 0, -1):
-        x = eye + tf.linalg.matmul(m, x) / tf.constant(tf.cast(i, m.dtype))
-
-    return x
+    Convention: tr{T^a T^a} = -1/2
+    X^a = - 2 tr[T^a X]
+    """
+    c = -2
+    x00 = x[..., 0, 0]  # type:ignore
+    x01 = x[..., 0, 1]  # type:ignore
+    x11 = x[..., 1, 1]  # type:ignore
+    x02 = x[..., 0, 2]  # type:ignore
+    x12 = x[..., 1, 2]  # type:ignore
+    x22 = x[..., 2, 2]  # type:ignore
+    return tf.stack([
+        c * tf.math.imag(x01),
+        c * tf.math.real(x01),
+        tf.math.imag(x11) - tf.math.imag(x00),
+        c * tf.math.imag(x02),
+        c * tf.math.real(x02),
+        c * tf.math.imag(x12),
+        c * tf.math.real(x12),
+        SQRT1by3 * (
+            2 * tf.math.imag(x22) - tf.math.imag(x11) - tf.math.imag(x00)
+        ),
+    ], axis=-1)
 
 
 def su3fromvec(v: Tensor) -> Tensor:
@@ -317,13 +334,13 @@ def su3fromvec(v: Tensor) -> Tensor:
     """
     s3 = 0.577350269189625751  # sqrt(1/3)
     c = -0.5
-    zero = tf.zeros(v[..., 0].shape, dtype=v[..., 0].dtype)
-    x01 = c * tf.dtypes.complex(v[..., 1], v[..., 0])
-    x02 = c * tf.dtypes.complex(v[..., 4], v[..., 3])
-    x12 = c * tf.dtypes.complex(v[..., 6], v[..., 5])
-    x2i = s3 * v[..., 7]
-    x0i = c * (x2i + v[..., 2])
-    x1i = c * (x2i - v[..., 2])
+    zero = tf.zeros(v[..., 0].shape, dtype=v[..., 0].dtype)  # type:ignore
+    x01 = c * tf.dtypes.complex(v[..., 1], v[..., 0])        # type:ignore
+    x02 = c * tf.dtypes.complex(v[..., 4], v[..., 3])        # type:ignore
+    x12 = c * tf.dtypes.complex(v[..., 6], v[..., 5])        # type:ignore
+    x2i = s3 * v[..., 7]                                     # type:ignore
+    x0i = c * (x2i + v[..., 2])                              # type:ignore   
+    x1i = c * (x2i - v[..., 2])                              # type:ignore  
 
     def neg_conj(x: Tensor) -> Tensor:
         return tf.math.negative(tf.math.conj(x))
@@ -346,6 +363,20 @@ def su3fromvec(v: Tensor) -> Tensor:
     ], axis=-1)
 
     return tf.stack([v1, v2, v3])
+
+
+def eyeOf(m):
+    batch_shape = [1] * (len(m.shape) - 2)
+    return tf.eye(*m.shape[-2:], batch_shape=batch_shape, dtype=m.dtype)
+
+
+def exp(m: Tensor, order: int = 12):
+    eye = eyeOf(m)
+    x = eye + m / tf.constant(order)
+    for i in tf.range(order-1, 0, -1):
+        x = eye + tf.linalg.matmul(m, x) / tf.constant(tf.cast(i, m.dtype))
+
+    return x
 
 
 def SU3GradientTF(
